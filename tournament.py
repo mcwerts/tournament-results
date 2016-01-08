@@ -125,6 +125,7 @@ def reportMatch(winner, loser):
     #     print "reportMatch: error"
     db.close()
 
+
 def removePreviousOpponents(player, matches):
     """Returns a list of previous opponents for the player.
 
