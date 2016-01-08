@@ -8,6 +8,8 @@
 --
 -- Author: Michael Werts, mcwerts@gmail.com
 
+DROP DATABASE IF EXISTS tournament;
+
 CREATE DATABASE tournament;
 
 \c tournament;
@@ -16,26 +18,29 @@ CREATE TABLE players (
 	id SERIAL primary key,
 	name TEXT);
 
--- status can be 'pending' or 'completed'
-CREATE TABLE matches ( 
-	id SERIAL primary key,
-	player1 INTEGER references players(id),
-    player2 INTEGER references players(id),
-    status TEXT);
-
--- result can be 'win' or 'loss'
-CREATE TABLE results ( 
-	matchid INTEGER references matches(id),
-	player INTEGER references players(id),
-	result TEXT);
+CREATE TABLE matches (
+	winner INTEGER references players(id),
+    loser INTEGER references players(id));
 
 CREATE VIEW win_view(player, wins) AS 
-	SELECT player, count(player) AS wins FROM results WHERE result = 'win' GROUP BY player;
+	SELECT winner, count(winner) AS wins FROM matches GROUP BY winner;
 
-CREATE VIEW matches_view(player, matches) AS 
-	SELECT player, count(player) AS matches_played FROM results GROUP BY player;
+CREATE VIeW winx_view(player, name, wins) AS
+	SELECT players.id, players.name, COALESCE(win_view.wins, 0)
+	FROM players LEFT OUTER JOIN win_view
+	ON players.id = win_view.player;
 
--- player,win,matches view
-CREATE VIEW pwm_view(player, wins, matches) AS 
-	SELECT matches_view.player, COALESCE(win_view.wins, 0), matches_view.matches 
-	FROM matches_view LEFT OUTER JOIN win_view ON matches_view.player = win_view.player;
+CREATE VIEW loss_view(player, losses) AS 
+	SELECT loser, count(loser) AS losses FROM matches GROUP BY loser;
+
+CREATE VIEW lossx_view(player, name, losses) AS
+	SELECT players.id, players.name, COALESCE(loss_view.losses, 0)
+	FROM players LEFT OUTER JOIN loss_view
+	ON players.id = loss_view.player;
+
+CREATE VIEW standings(player, name, wins, losses) AS
+	SELECT winx_view.player, winx_view.name, winx_view.wins, 
+		(winx_view.wins+lossx_view.losses) AS matches_played
+	FROM winx_view JOIN lossx_view 
+	ON winx_view.player = lossx_view.player
+	ORDER BY wins DESC;
