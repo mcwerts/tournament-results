@@ -23,8 +23,9 @@ USAGE
 
 > python tournament_test.py
 
-The database should generally be dropped between subsequent runs of the
-test script.
+The database or tables should generally be dropped between subsequent runs 
+of the test script. Including the SQL script in Postgresql will take care of
+this.
 
 AUTHOR
 

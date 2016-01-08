@@ -17,7 +17,6 @@ def deleteMatches():
     db = connect()
     c = db.cursor()
     c.execute("DELETE FROM matches;")
-    c.execute("DELETE FROM results;")
     db.commit()
     db.close()
 
@@ -76,14 +75,7 @@ def playerStandings():
 
     db = connect()
     c = db.cursor()
-    c.execute('''
-        SELECT players.id, players.name,
-            coalesce(pwm_view.wins, 0),
-            coalesce(pwm_view.matches, 0)
-        FROM players LEFT OUTER JOIN pwm_view
-        ON pwm_view.player = players.id
-        ORDER BY pwm_view.wins DESC;
-        ''')
+    c.execute("SELECT * FROM standings;")
     results = c.fetchall()
     db.close()
 
@@ -100,29 +92,9 @@ def reportMatch(winner, loser):
 
     db = connect()
     c = db.cursor()
-    # TESTS EXPECT TO BE ABLE TO REPORT UNSCHEDULED MATCHES. Therefore this
-    # code to verify that the reported match is legitimate has to be disabled.
-    # Check this is a scheduled match.
-    # c.execute('''
-    #     SELECT id, player1, player2
-    #     FROM matches
-    #     WHERE (status = 'pending') AND ((%(winner)s = player1
-    #         AND %(loser)s = player2)
-    #         OR (%(loser)s = player1 AND %(winner)s = player2));
-    #     ''', {'winner': winner, 'loser': loser})
-    # rows = c.fetchall()
-    # if (1 == len(rows)):
-    #    Report is legit. Record result.
-    # c.execute(
-    #     "UPDATE matches
-    #         SET status = 'completed' WHERE id = %s;", (rows[0][0],))
     c.execute(
-        "INSERT INTO results(player, result) VALUES(%s, 'win');", (winner,))
-    c.execute(
-        "INSERT INTO results(player, result) VALUES(%s, 'loss');", (loser,))
+        "INSERT INTO matches(winner, loser) VALUES(%s, %s);", (winner, loser))
     db.commit()
-    # else:
-    #     print "reportMatch: error"
     db.close()
 
 
@@ -138,18 +110,7 @@ def removePreviousOpponents(player, matches):
     """
 
     previousOpponents = []
-    # i = -1
-    # for m in matches:
-    #     i = i + 1
-    #     if player == matches[i][0]:
-    #         previousOpponents.append(matches[i][1])
-    #         matches.pop(i)
-    #     elif player == matches[i][1]:
-    #         previousOpponents.append(matches[i][0])
-    #         matches.pop(i)
-
     for i, m in enumerate(matches):
-        i = i + 1
         if player == matches[i][0]:
             previousOpponents.append(matches[i][1])
             matches.pop(i)
@@ -200,7 +161,7 @@ def swissPairings():
     # Get the matches data.
     db = connect()
     c = db.cursor()
-    c.execute("SELECT player1, player2 FROM matches;")
+    c.execute("SELECT winner, loser FROM matches;")
     matches = c.fetchall()
 
     # Generate and record the pairings
@@ -225,13 +186,6 @@ def swissPairings():
         pairings.append(
             (nextPlayer[0], nextPlayer[1], nextOpponent[0], nextOpponent[1]))
 
-    # Record the pairings in the database
-    for pair in pairings:
-        c.execute(
-            """INSERT INTO matches(player1, player2, status)
-                VALUES(%s, %s, 'pending');""",
-            (pair[0], pair[2]))
-    db.commit()
     db.close
 
     return pairings
